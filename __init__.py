@@ -89,7 +89,6 @@ def get_face_landmark_vertices(mesh):
     edges = []
     if 'region_edges' in config['MODEL']:
         edges = config['MODEL']['region_edges']
-        # pass  # ADD METHOD OF CONVERTING REGION EDGES TO MESH EDGES
 
     lms_mesh = bpy.data.meshes.new('lms')
     lms_mesh.from_pydata(lms, edges, [])
@@ -98,8 +97,7 @@ def get_face_landmark_vertices(mesh):
 
 
 def get_object(name):
-    """Returns an object or none
-    """
+    """Returns an object or none"""
     if isinstance(name, str):
         obj = bpy.context.scene.objects.get(name)
         if obj:
@@ -108,7 +106,7 @@ def get_object(name):
 
 
 def set_active_object(obj, select=True):
-    """ Select the object"""
+    """Select the object"""
     if isinstance(obj, str):
         obj = bpy.data.objects.get(obj)
     if obj:
@@ -123,6 +121,7 @@ def set_active_object(obj, select=True):
 
 ##################################### Classes #####################################
 class PG_FaceProperties(PropertyGroup):
+    """Properties"""
     face_region: EnumProperty(
         name = 'Region',
         description = 'Face Region',
@@ -154,7 +153,7 @@ class FaceAddMeanMesh(bpy.types.Operator):
         print('Adding mean model mesh...')
         control_lms = config['MODEL']['regions']
         delta = []
-        for idx in control_lms.keys():  # [9, 0, 8, 3, 7, 1, 10, 6]:
+        for idx in control_lms.keys():
             delta.append(torch.zeros(3 * len(control_lms[idx]), device=device).reshape(1, -1))
 
         z_mean = np.array([gid_dict['mean']])
@@ -312,14 +311,15 @@ class FaceLoadModel(bpy.types.Operator):
         config_file = os.path.join(path, 'config.yaml')
         config_file = config_file.replace('\\', '/')
         config = read_yaml(config_file)
+        config_json = json.dumps(config, indent=1, ensure_ascii=True)
         config['local_device_ids'] = device_ids
         config['MODEL']['face_part_ids_file'] = os.path.join(
             CURR_DIR, config['MODEL']['face_part_ids_file'])
 
-        # Create an empty object, add it to thescene and populate it with the model
-        model_obj = bpy.data.objects.new(name="Model", type="EMPTY")
-        bpy.context.scene.collection.objects.link(model_obj)
-        model_obj['config'] = config
+        # # Create an empty object, add it to the scene and populate it with the model
+        # model_obj = bpy.data.objects.new('model', config_json)
+        # bpy.context.scene.collection.objects.link(model_obj)
+        # # model_obj['config'] = config
 
         # Load model
         model = get_model(config, device)
@@ -583,7 +583,7 @@ class FACE_PT_Model(bpy.types.Panel):
 
         col.separator()
         col.label(text='Sample:')
-        col.operator("object.face_add_random_shape", text="Add Random Model Instance")
+        col.operator("object.face_add_random_shape", text="Add Random Instance")
 
         col.separator()
         col.prop(context.window_manager.face_tool, "face_region")
