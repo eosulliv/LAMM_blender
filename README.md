@@ -8,7 +8,7 @@ The latest version of this add on can be downloaded from the release section of 
 
 To install the add on:
 Method 1:
-- unzip the folder "molecular" in your "x.xx\scripts\addons" blender directory
+- Unzip the file ``lamm_blender_x.xx'' into the "<>\scripts\addons" Blender directory
 
 or
 
