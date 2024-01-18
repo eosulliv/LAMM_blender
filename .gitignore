@@ -1,8 +1,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 .idea/
-checkpoints/
+checkpoints/*
 data/
 jupyter/
+models/
 packages/
-models/*
+releases/

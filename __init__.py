@@ -35,20 +35,18 @@ from models import get_model
 
 # Blender plug-in information
 bl_info = {
-    "name": "Disentangled Face Re-Shaping",
+    "name": "Locally Adaptive 3D Morphable Models",
     "author": "Eimear O' Sullivan",
     "version": (2023, 10, 23),
     "blender": (3, 3, 1),
     "location": "Viewport > Right panel",
-    "description": "Disentangled Face Re-Shaping for Blender",
+    "description": "Locally Adaptive 3D Morphable Models for Blender",
     "wiki_url": "",
-    "category": "Face Re-Shaping"
+    "category": "LAMM"
 }
 
 ##################################### Globals #####################################
 FACE_BASEMESH = 'mean.obj'
-FACE_MODELFILE = "smplx_model_20210421.blend"
-FACE_MODELFILE_300 = "smplx_model_300_20220615.blend"
 
 LANDMARK_FILE = 'data\\resources\\FaceLandmarks.blend'
 LANDMARK_SET = 'facial_landmarks'
@@ -562,11 +560,11 @@ class FaceUpdateShape(bpy.types.Operator):
 
 
 ################################## Panel Classes ##################################
-class FACE_PT_Model(bpy.types.Panel):
+class LAMM_PT_Model(bpy.types.Panel):
     """Face loading UI
     """
     bl_label = "Face Model"
-    bl_category = "FACE"
+    bl_category = "LAMM"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
 
@@ -590,10 +588,10 @@ class FACE_PT_Model(bpy.types.Panel):
         col.operator("object.face_randomise_region", text="Randomise Region")
 
 
-class FACE_PT_Landmarks(bpy.types.Panel):
+class LAMM_PT_Landmarks(bpy.types.Panel):
     """Landmarks UI"""
     bl_label = "Landmarks"
-    bl_category = "FACE"
+    bl_category = "LAMM"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
 
@@ -618,8 +616,8 @@ classes = [
     FaceRandomiseRegion,
     FaceResetShape,
     FaceUpdateShape,
-    FACE_PT_Model,
-    FACE_PT_Landmarks,
+    LAMM_PT_Model,
+    LAMM_PT_Landmarks,
 ]
 
 
