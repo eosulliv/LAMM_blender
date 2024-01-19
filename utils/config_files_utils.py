@@ -1,4 +1,4 @@
-"""Config file utilities file
+"""Config utilities file
 """
 from yaml import load, dump, safe_load
 import os

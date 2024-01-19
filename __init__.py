@@ -29,9 +29,9 @@ import torch
 # Add path to model utils
 # sys.path.append(os.path.join(CURR_DIR, 'utils'))
 sys.path.append(CURR_DIR)
-from utils.config_files_utils import read_yaml
-from utils.torch_utils import load_from_checkpoint
-from models import get_model
+from LAMM.utils.config_files_utils import read_yaml
+from LAMM.utils.torch_utils import load_from_checkpoint
+from LAMM.models import LAMM
 
 # Blender plug-in information
 bl_info = {
@@ -298,6 +298,7 @@ class FaceLoadModel(bpy.types.Operator):
 
     def load_model(self, path):
         """Load Model"""
+        print(CURR_DIR)
         global model
         global config
         global device
@@ -313,15 +314,10 @@ class FaceLoadModel(bpy.types.Operator):
         config['local_device_ids'] = device_ids
         config['MODEL']['face_part_ids_file'] = os.path.join(
             CURR_DIR, config['MODEL']['face_part_ids_file'])
-
-        # # Create an empty object, add it to the scene and populate it with the model
-        # model_obj = bpy.data.objects.new('model', config_json)
-        # bpy.context.scene.collection.objects.link(model_obj)
-        # # model_obj['config'] = config
+        config['MODEL']['manipulation'] = True
 
         # Load model
-        model = get_model(config, device)
-        model = model.to(device)
+        model = LAMM(config['MODEL']).to(device)
         if checkpoint_name is None:
             checkpoint_name = 'best_bmax.pth'
 

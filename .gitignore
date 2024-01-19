@@ -4,6 +4,7 @@ __pycache__/
 checkpoints/*
 data/
 jupyter/
+LAMM/
 models/
 packages/
 releases/
