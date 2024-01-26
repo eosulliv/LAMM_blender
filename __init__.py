@@ -19,7 +19,8 @@ from bpy.types import PropertyGroup
 
 # Add path to packages
 CURR_DIR = os.path.dirname(os.path.realpath(__file__))
-CHECKPOINT_DIR = os.path.join(CURR_DIR, 'checkpoints')
+CHECKPOINT_DIR = os.path.join(CURR_DIR, 'LAMM', 'assets', 'checkpoints')
+# TODO: Change this so that it is alphabetically the first checkpoint in the dir
 DEFAULT_CHECKPOINT = 'mtt_256-11regions_wholehead_fromAE_lr1e4_wregion6_rand-b'
 
 sys.path.append(os.path.join(CURR_DIR, 'packages'))
@@ -302,24 +303,22 @@ class FaceLoadModel(bpy.types.Operator):
         global model
         global config
         global device
-        checkpoint_name = 'best_bmax.pth'
+        checkpoint_name = 'checkpoint.pth'
         device_ids = [-1]
         device = torch.device("cpu" if device_ids[0] == -1 else f"cuda:{device_ids[0]:%d}")
 
         # Load config file and update paths
-        config_file = os.path.join(path, 'config.yaml')
+        config_file = os.path.join(path, 'config_file.yaml')
         config_file = config_file.replace('\\', '/')
         config = read_yaml(config_file)
         config_json = json.dumps(config, indent=1, ensure_ascii=True)
         config['local_device_ids'] = device_ids
         config['MODEL']['face_part_ids_file'] = os.path.join(
-            CURR_DIR, config['MODEL']['face_part_ids_file'])
+            CURR_DIR, 'LAMM', config['MODEL']['face_part_ids_file'])
         config['MODEL']['manipulation'] = True
 
         # Load model
         model = LAMM(config['MODEL']).to(device)
-        if checkpoint_name is None:
-            checkpoint_name = 'best_bmax.pth'
 
         checkpoint = os.path.join('/'.join(config_file.split('/')[:-1]), checkpoint_name)
         load_from_checkpoint(model, checkpoint, partial_restore=False)
@@ -336,15 +335,15 @@ class FaceLoadModel(bpy.types.Operator):
             gid_dict = pickle.load(f)
 
         global mean_std
-        with open(os.path.join(path, 'mean_std_model.pickle'), 'rb') as f:
+        with open(os.path.join(path, 'mean_std.pickle'), 'rb') as f:
             mean_std = pickle.load(f, encoding='latin1')
 
         global disp_stats
-        with open(os.path.join(path, 'displacements_stats.pkl'), 'rb') as file:
+        with open(os.path.join(path, 'displacements_stats.pickle'), 'rb') as file:
             disp_stats = pickle.load(file)
 
         global faces
-        head_mesh = tm.load(os.path.join(path, 'mean.obj'))
+        head_mesh = tm.load(os.path.join(path, 'template.obj'))
         faces = head_mesh.faces
 
     def execute(self, context):
@@ -354,7 +353,7 @@ class FaceLoadModel(bpy.types.Operator):
         print(f'Loading model: {model_name}...')
 
         self.load_model(model_path)
-        self.get_model_stats(model_path)
+        self.get_model_stats(os.path.join(model_path, 'files'))
         print('Loaded.')
         return {'FINISHED'}
 
