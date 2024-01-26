@@ -156,7 +156,7 @@ class FaceAddMeanMesh(bpy.types.Operator):
             delta.append(torch.zeros(3 * len(control_lms[idx]), device=device).reshape(1, -1))
 
         z_mean = np.array([gid_dict['mean']])
-        vertices = model.decode(torch.tensor(z_mean).unsqueeze(0), delta)[-1][0]
+        vertices = model.decode(torch.tensor(z_mean).unsqueeze(0), delta)[-1][0].detach().numpy()
         vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean']
 
         new_mesh = bpy.data.meshes.new('mean')
@@ -218,7 +218,7 @@ class FaceAddRandomShape(bpy.types.Operator):
         for idx in control_lms.keys():  # [9, 0, 8, 3, 7, 1, 10, 6]:
             delta.append(torch.zeros(3 * len(control_lms[idx]), device=device).reshape(1, -1))
 
-        vertices = model.decode(z.unsqueeze(0), delta)[-1][0]
+        vertices = model.decode(z.unsqueeze(0), delta)[-1][0].detach().numpy()
         vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean']
 
         # Create new object with decoded vertices and rotate to correct orientation
@@ -317,6 +317,8 @@ class FaceLoadModel(bpy.types.Operator):
             CURR_DIR, 'LAMM', config['MODEL']['face_part_ids_file'])
         config['MODEL']['manipulation'] = True
 
+        print('Regions:', config['MODEL']['face_part_ids_file'])
+
         # Load model
         model = LAMM(config['MODEL']).to(device)
 
@@ -339,7 +341,7 @@ class FaceLoadModel(bpy.types.Operator):
             mean_std = pickle.load(f, encoding='latin1')
 
         global disp_stats
-        with open(os.path.join(path, 'displacements_stats.pickle'), 'rb') as file:
+        with open(os.path.join(path, 'displacement_stats.pickle'), 'rb') as file:
             disp_stats = pickle.load(file)
 
         global faces
@@ -406,10 +408,6 @@ class FaceRandomiseRegion(bpy.types.Operator):
                                           disp_stats[region]['std'], 1),
                                           dtype=torch.float32, device=device))
 
-        # if 'region_symmetry' in config['MODEL'].keys():
-        #     symmetries = config['MODEL']['region_symmetry']
-        #     print(symmetries)
-
         # Get mesh vertices
         vertices = np.ones(len(mesh.data.vertices) * 3)
         mesh.data.vertices.foreach_get("co", vertices)
@@ -418,8 +416,8 @@ class FaceRandomiseRegion(bpy.types.Operator):
         vertices = vertices.to(torch.float32).to(device)
 
         id_token, _ = model.encode(vertices)
-        y = model.decode(id_token, deltas)[-1][0]
-        y = (y * (mean_std['std'] + 1e-7) + mean_std['mean']).detach().numpy()
+        y = model.decode(id_token, deltas)[-1][0].detach().numpy()
+        y = (y * (mean_std['std'] + 1e-7) + mean_std['mean'])
 
         # Update the mesh vertices
         for i, y_vert in enumerate(y):
@@ -536,7 +534,7 @@ class FaceUpdateShape(bpy.types.Operator):
         vertices = vertices.to(torch.float32).to(device)
 
         id_token, _ = model.encode(vertices)
-        y = model.decode(id_token, deltas)[-1][0]
+        y = model.decode(id_token, deltas)[-1][0].detach().numpy()
         y = (y * (mean_std['std'] + 1e-7) + mean_std['mean']).detach().numpy()
 
         # Update the mesh vertices
