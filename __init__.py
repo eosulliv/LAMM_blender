@@ -21,7 +21,7 @@ from bpy.types import PropertyGroup
 CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 CHECKPOINT_DIR = os.path.join(CURR_DIR, 'LAMM', 'assets', 'checkpoints')
 # TODO: Change this so that it is alphabetically the first checkpoint in the dir
-DEFAULT_CHECKPOINT = 'mtt_256-11regions_wholehead_fromAE_lr1e4_wregion6_rand-b'
+DEFAULT_CHECKPOINT = 'UHM17k_v1'
 
 sys.path.append(os.path.join(CURR_DIR, 'packages'))
 import trimesh as tm
@@ -45,30 +45,6 @@ bl_info = {
     "wiki_url": "",
     "category": "LAMM"
 }
-
-##################################### Globals #####################################
-# FACE_BASEMESH = 'mean.obj'
-
-# LANDMARK_FILE = 'data\\resources\\FaceLandmarks.blend'
-# LANDMARK_SET = 'facial_landmarks'
-
-# FACE_LM_NAMES = [
-#     'left_nostril', 'nose1', 'nose2', 'nose3', 'nose4', 'nose5', 'nose6', 'right_nostril',  # 0-7
-#     'left_ear1', 'left_cheek1', 'left_cheek2', 'jaw1', 'jaw2', 'left_cheek3',  # 8-13
-#     'jaw3', 'jaw4', 'left_cheek4', 'left_cheek5', 'chin1', 'chin2', 'left_cheek6',  # 14-20
-#     'left_eye1', 'left_eye2', 'left_eye3', 'left_eye4', 'left_eye5',  # 21-25
-#     'right_eye1', 'right_cheek1', 'right_eye2', 'right_eye3', 'right_eye4', 'right_eye5',  # 26-31
-#     'left_ear2', 'left_ear3', 'left_ear4', 'left_ear5',  # 32-35
-#     'left_ear6', 'left_ear7', 'left_ear8', 'left_ear9',  # 36-39
-#     'right_ear1', 'right_ear2', 'right_ear3', 'right_ear4', 'right_ear5',  # 40-44
-#     'right_ear6', 'right_ear7', 'right_ear8', 'cranium1', 'cranium2', 'cranium3',  # 45-50
-#     'right_ear9', 'jaw5', 'chin3', 'chin4', 'right_cheek2', 'right_cheek3',  # 51-56
-#     'jaw6', 'jaw7', 'right_cheek4', 'right_cheek3', 'right_cheek6',  # 57-61
-#     'jaw8', 'chin5', 'mouth1', 'mouth2', 'mouth3', 'mouth4', 'mouth5', 'mouth6', 'mouth7',  # 62-70
-#     'mouth8', 'mouth9', 'mouth10', 'mouth11', 'mouth12', 'mouth13', 'mouth14',  # 71-77
-#     'cranium4', 'cranium5', 'cranium6'  # 78-80
-# ]
-# NUM_FACE_LMS = len(FACE_LM_NAMES)
 
 
 #################################### Functions ####################################
@@ -279,6 +255,55 @@ class FaceEditLandmarks(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class FaceLoadMesh(bpy.types.Operator):
+    """Add model to scene
+    """
+    bl_idname = "scene.face_load_mesh"
+    bl_label = "Load Mesh"
+    bl_description = "Load selected mesh to scene"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        """Check whether the panel can be drawn"""
+        try:  # Enable button only if in Object Mode
+            if context.active_object is None or context.active_object.mode == 'OBJECT':
+                return True
+            return False
+        except:
+            return False
+
+    def execute(self, context):
+        """Execute"""
+        mesh_path = context.scene.mesh_path
+        mesh_name = mesh_path.split('\\')[-1]
+        print(f'Loading mesh: {mesh_name}...')
+        mesh = tm.load(mesh_path)
+
+        new_mesh = bpy.data.meshes.new(mesh_name)
+        new_mesh.from_pydata(mesh.vertices, [], mesh.faces)
+        new_mesh.update()
+
+        new_object = bpy.data.objects.new(mesh_name, new_mesh)
+        bpy.context.collection.objects.link(new_object)
+
+        lms = get_face_landmark_vertices(new_object)
+        lms_object = bpy.data.objects.new(f'{new_object.name}_lms', lms)
+        bpy.context.collection.objects.link(lms_object)
+        lms_object.parent = new_object
+        set_active_object(new_object)
+
+        bpy.ops.object.select_all(action='DESELECT')
+        context.view_layer.objects.active = new_object
+        bpy.data.objects[new_object.name].select_set(True)
+
+        bpy.context.active_object.rotation_mode = 'XYZ'
+        bpy.context.active_object.rotation_euler = (radians(90), 0, 0)
+
+        print('Loaded.')
+        return {'FINISHED'}
+
+
 class FaceLoadModel(bpy.types.Operator):
     """Add model to scene
     """
@@ -299,7 +324,6 @@ class FaceLoadModel(bpy.types.Operator):
 
     def load_model(self, path):
         """Load Model"""
-        print(CURR_DIR)
         global model
         global config
         global device
@@ -357,7 +381,7 @@ class FaceLoadModel(bpy.types.Operator):
 
     def execute(self, context):
         """Execute"""
-        model_path = context.scene.conf_path
+        model_path = context.scene.model_path
         model_name = model_path.split('\\')[-1]
         print(f'Loading model: {model_name}...')
 
@@ -597,7 +621,7 @@ class FaceUpdateShape(bpy.types.Operator):
 class LAMM_PT_Model(bpy.types.Panel):
     """Face loading UI
     """
-    bl_label = "Face Model"
+    bl_label = "Model"
     bl_category = "LAMM"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
@@ -607,22 +631,19 @@ class LAMM_PT_Model(bpy.types.Panel):
         layout = self.layout
         col = layout.column(align=True)
 
-        col.prop(context.scene, 'conf_path')
+        col.prop(context.scene, 'model_path')
         col.operator("scene.face_load_model", text="Load Model")
 
         col.separator()
         col.operator("object.face_add_mean_mesh", text="Add Model Mean")
 
         col.separator()
+        col.prop(context.scene, 'mesh_path')
+        col.operator("scene.face_load_mesh", text="Load Mesh")
+
+        col.separator()
         col.label(text='Sample:')
         col.operator("object.face_add_random_shape", text="Add Random Instance")
-
-        col.separator()
-        col.prop(context.window_manager.face_tool, "face_region")
-        col.operator("object.face_randomise_region", text="Randomise Region")
-
-        col.separator()
-        col.operator("object.face_reset_shape", text="Reset To Mean")
 
 
 class LAMM_PT_Landmarks(bpy.types.Panel):
@@ -643,6 +664,13 @@ class LAMM_PT_Landmarks(bpy.types.Panel):
         col.separator()
         col.operator("object.face_update_shape", text="Update Shape")
 
+        col.separator()
+        col.prop(context.window_manager.face_tool, "face_region")
+        col.operator("object.face_randomise_region", text="Randomise Region")
+
+        col.separator()
+        col.operator("object.face_reset_shape", text="Reset To Mean")
+
 
 classes = [
     PG_FaceProperties,
@@ -650,6 +678,7 @@ classes = [
     FaceAddRandomShape,
     FaceEditLandmarks,
     FaceLoadModel,
+    FaceLoadMesh,
     FaceRandomiseRegion,
     FaceResetShape,
     FaceUpdateShape,
@@ -663,11 +692,18 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    bpy.types.Scene.conf_path = bpy.props.StringProperty(
+    bpy.types.Scene.model_path = bpy.props.StringProperty(
         name='Model',
         default=os.path.join(CHECKPOINT_DIR, DEFAULT_CHECKPOINT),
         description='Define the root path of the project',
-        subtype = 'DIR_PATH'
+        subtype='DIR_PATH'
+    )
+
+    bpy.types.Scene.mesh_path = bpy.props.StringProperty(
+        name='Mesh',
+        default='',
+        description='Load a mesh from files',
+        subtype='FILE_PATH'
     )
 
     # Store properties under WindowManager (not Scene) so that they are not saved
@@ -682,7 +718,8 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
     del bpy.types.WindowManager.face_tool
-    del bpy.types.Scene.conf_path
+    del bpy.types.Scene.model_path
+    del bpy.types.Scene.mesh_path
 
 
 if __name__ == "__main__":
