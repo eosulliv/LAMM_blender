@@ -47,28 +47,28 @@ bl_info = {
 }
 
 ##################################### Globals #####################################
-FACE_BASEMESH = 'mean.obj'
+# FACE_BASEMESH = 'mean.obj'
 
-LANDMARK_FILE = 'data\\resources\\FaceLandmarks.blend'
-LANDMARK_SET = 'facial_landmarks'
+# LANDMARK_FILE = 'data\\resources\\FaceLandmarks.blend'
+# LANDMARK_SET = 'facial_landmarks'
 
-FACE_LM_NAMES = [
-    'left_nostril', 'nose1', 'nose2', 'nose3', 'nose4', 'nose5', 'nose6', 'right_nostril',  # 0-7
-    'left_ear1', 'left_cheek1', 'left_cheek2', 'jaw1', 'jaw2', 'left_cheek3',  # 8-13
-    'jaw3', 'jaw4', 'left_cheek4', 'left_cheek5', 'chin1', 'chin2', 'left_cheek6',  # 14-20
-    'left_eye1', 'left_eye2', 'left_eye3', 'left_eye4', 'left_eye5',  # 21-25
-    'right_eye1', 'right_cheek1', 'right_eye2', 'right_eye3', 'right_eye4', 'right_eye5',  # 26-31
-    'left_ear2', 'left_ear3', 'left_ear4', 'left_ear5',  # 32-35
-    'left_ear6', 'left_ear7', 'left_ear8', 'left_ear9',  # 36-39
-    'right_ear1', 'right_ear2', 'right_ear3', 'right_ear4', 'right_ear5',  # 40-44
-    'right_ear6', 'right_ear7', 'right_ear8', 'cranium1', 'cranium2', 'cranium3',  # 45-50
-    'right_ear9', 'jaw5', 'chin3', 'chin4', 'right_cheek2', 'right_cheek3',  # 51-56
-    'jaw6', 'jaw7', 'right_cheek4', 'right_cheek3', 'right_cheek6',  # 57-61
-    'jaw8', 'chin5', 'mouth1', 'mouth2', 'mouth3', 'mouth4', 'mouth5', 'mouth6', 'mouth7',  # 62-70
-    'mouth8', 'mouth9', 'mouth10', 'mouth11', 'mouth12', 'mouth13', 'mouth14',  # 71-77
-    'cranium4', 'cranium5', 'cranium6'  # 78-80
-]
-NUM_FACE_LMS = len(FACE_LM_NAMES)
+# FACE_LM_NAMES = [
+#     'left_nostril', 'nose1', 'nose2', 'nose3', 'nose4', 'nose5', 'nose6', 'right_nostril',  # 0-7
+#     'left_ear1', 'left_cheek1', 'left_cheek2', 'jaw1', 'jaw2', 'left_cheek3',  # 8-13
+#     'jaw3', 'jaw4', 'left_cheek4', 'left_cheek5', 'chin1', 'chin2', 'left_cheek6',  # 14-20
+#     'left_eye1', 'left_eye2', 'left_eye3', 'left_eye4', 'left_eye5',  # 21-25
+#     'right_eye1', 'right_cheek1', 'right_eye2', 'right_eye3', 'right_eye4', 'right_eye5',  # 26-31
+#     'left_ear2', 'left_ear3', 'left_ear4', 'left_ear5',  # 32-35
+#     'left_ear6', 'left_ear7', 'left_ear8', 'left_ear9',  # 36-39
+#     'right_ear1', 'right_ear2', 'right_ear3', 'right_ear4', 'right_ear5',  # 40-44
+#     'right_ear6', 'right_ear7', 'right_ear8', 'cranium1', 'cranium2', 'cranium3',  # 45-50
+#     'right_ear9', 'jaw5', 'chin3', 'chin4', 'right_cheek2', 'right_cheek3',  # 51-56
+#     'jaw6', 'jaw7', 'right_cheek4', 'right_cheek3', 'right_cheek6',  # 57-61
+#     'jaw8', 'chin5', 'mouth1', 'mouth2', 'mouth3', 'mouth4', 'mouth5', 'mouth6', 'mouth7',  # 62-70
+#     'mouth8', 'mouth9', 'mouth10', 'mouth11', 'mouth12', 'mouth13', 'mouth14',  # 71-77
+#     'cranium4', 'cranium5', 'cranium6'  # 78-80
+# ]
+# NUM_FACE_LMS = len(FACE_LM_NAMES)
 
 
 #################################### Functions ####################################
@@ -123,7 +123,7 @@ class PG_FaceProperties(PropertyGroup):
     """Properties"""
     face_region: EnumProperty(
         name = 'Region',
-        description = 'Face Region',
+        description = 'Mesh Regions',
         items = [ ('0', 'Left Side', ''), ('1', 'Right Side', ''), ('3', 'Ears', ''),
                   ('6', 'Skull', ''), ('7', 'Forehead', ''), ('8', 'Eyes', ''),
                   ('9', 'Nose', ''), ('10','Mouth',  '') ]
@@ -317,7 +317,14 @@ class FaceLoadModel(bpy.types.Operator):
             CURR_DIR, 'LAMM', config['MODEL']['face_part_ids_file'])
         config['MODEL']['manipulation'] = True
 
-        print('Regions:', config['MODEL']['face_part_ids_file'])
+        # # Set Enum Properties for facial regions
+        # bpy.context.window_manager.face_tool = EnumProperty(
+        #     name = 'Region',
+        #     description = 'Mesh Regions',
+        #     items = [ ('0', 'Left Side', ''), ('1', 'Right Side', ''), ('3', 'Ears', '') ]
+        # )
+        # bpy.types.WindowManager.face_tool.face_region.items.append[
+        #     ('0', 'Left Side', ''), ('1', 'Right Side', '')]
 
         # Load model
         model = LAMM(config['MODEL']).to(device)
@@ -341,8 +348,8 @@ class FaceLoadModel(bpy.types.Operator):
             mean_std = pickle.load(f, encoding='latin1')
 
         global disp_stats
-        with open(os.path.join(path, 'displacement_stats.pickle'), 'rb') as file:
-            disp_stats = pickle.load(file)
+        with open(os.path.join(path, 'displacement_stats.pickle'), 'rb') as f:
+            disp_stats = pickle.load(f)
 
         global faces
         head_mesh = tm.load(os.path.join(path, 'template.obj'))
@@ -449,15 +456,48 @@ class FaceResetShape(bpy.types.Operator):
         except:
             return False
 
+    def update_face_landmarks(self, mesh):
+        """Update face landmarks"""
+        new_lms = get_face_landmark_vertices(mesh)
+        mesh_lms = get_object(f'{mesh.name}_lms')
+
+        for i, vert in enumerate(new_lms.vertices):
+            mesh_lms.data.vertices[i].co = vert.co
+
     def execute(self, context):
         """Execute"""
-        obj = bpy.context.object
-        bpy.ops.object.mode_set(mode='OBJECT')
-        for key_block in obj.data.shape_keys.key_blocks:
-            if key_block.name.startswith("Shape"):
-                key_block.value = 0.0
+        print('Resetting mesh to mean shape...')
+        # Ensure the mesh is set as the active object
+        if context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
 
-        bpy.ops.object.face_update_joint_locations('EXEC_DEFAULT')
+        if context.active_object.name.endswith('_lms'):
+            set_active_object(context.active_object.name.split('_lms')[0])
+        mesh_name = context.active_object.name
+        mesh = get_object(mesh_name)
+
+        # Get mean vertices
+        control_lms = config['MODEL']['regions']
+        delta = []
+        for idx in control_lms.keys():
+            delta.append(torch.zeros(3 * len(control_lms[idx]), device=device).reshape(1, -1))
+
+        z_mean = np.array([gid_dict['mean']])
+        vertices = model.decode(torch.tensor(z_mean).unsqueeze(0), delta)[-1][0].detach().numpy()
+        vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean']
+
+        # Update the mesh vertices and corresponding landmarks
+        for i, vert in enumerate(vertices):
+            mesh.data.vertices[i].co = vert
+        self.update_face_landmarks(mesh)
+
+        bpy.ops.object.select_all(action='DESELECT')
+        context.view_layer.objects.active = mesh
+        bpy.data.objects[mesh.name].select_set(True)
+
+        bpy.context.active_object.rotation_mode = 'XYZ'
+        bpy.context.active_object.rotation_euler = (radians(90), 0, 0)
+        print('Done.')
 
         return {'FINISHED'}
 
@@ -489,11 +529,11 @@ class FaceUpdateShape(bpy.types.Operator):
         sum_deltas = 0
 
         start_lm = 0
-        for idx in [0, 1, 3, 6, 7, 8, 9, 10]:
+        for idx in control_lms.keys():
             n_lms = len(control_lms[idx])
             d = torch.tensor(delta_list[start_lm:(start_lm + n_lms)]).reshape(-1)
             indices = config['MODEL']['regions'][idx]
-            std_ = (mean_std['std'][indices] + 1e-7).reshape(-1).to(torch.float32)
+            std_ = torch.tensor((mean_std['std'][indices] + 1e-7).reshape(-1), dtype=torch.float32)
 
             delta_tensor.append((d / std_).reshape(1, -1))
             sum_deltas += torch.sum(torch.abs(delta_tensor[-1]))
@@ -535,7 +575,7 @@ class FaceUpdateShape(bpy.types.Operator):
 
         id_token, _ = model.encode(vertices)
         y = model.decode(id_token, deltas)[-1][0].detach().numpy()
-        y = (y * (mean_std['std'] + 1e-7) + mean_std['mean']).detach().numpy()
+        y = (y * (mean_std['std'] + 1e-7) + mean_std['mean'])
 
         # Update the mesh vertices
         for i, y_vert in enumerate(y):
@@ -548,6 +588,7 @@ class FaceUpdateShape(bpy.types.Operator):
 
         bpy.context.active_object.rotation_mode = 'XYZ'
         bpy.context.active_object.rotation_euler = (radians(90), 0, 0)
+        print('Done.')
 
         return {'FINISHED'}
 
@@ -579,6 +620,9 @@ class LAMM_PT_Model(bpy.types.Panel):
         col.separator()
         col.prop(context.window_manager.face_tool, "face_region")
         col.operator("object.face_randomise_region", text="Randomise Region")
+
+        col.separator()
+        col.operator("object.face_reset_shape", text="Reset To Mean")
 
 
 class LAMM_PT_Landmarks(bpy.types.Panel):

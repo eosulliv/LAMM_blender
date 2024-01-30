@@ -23,13 +23,15 @@ Method 2:
 
 Downloading the model and checkpoints
 -------------------------------------
-The model code can be downloaded from the [LAMM](https://github.com/michaeltrs/LAMM) GitHub repository. It should be cloned into the "model" folder in the "<>\scripts\addons\lamm_blender_x_xx" directory.
+Downloading LAMM:
+- Navigate to the "<>\scripts\addons\lamm_blender_x_xx" directory via the command line.
+- Clone [LAMM](https://github.com/michaeltrs/LAMM) from the github repository GitHub repository. It should be cloned into the "model" folder in the "<>.
 
 
 Model checkpoints:
 You can point the add-on to your trained model checkpoint folder using the file search option at the top of the "Face Model" pane.
 The checkpoint directroy is expected to contain the following assets:
-- best_bmax.pth
+- checkpoint.pth
 - config.yaml
 - displacement_stats.pkl
 - gaussian_id.pkl
