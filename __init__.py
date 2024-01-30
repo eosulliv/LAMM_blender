@@ -1,4 +1,4 @@
-"""Module providing means of editing face shape via facial landmarks.
+"""Module providing means of editing mesh shape via contorl points or landmarks.
 """
 
 import os
@@ -28,7 +28,6 @@ import trimesh as tm
 import torch
 
 # Add path to model utils
-# sys.path.append(os.path.join(CURR_DIR, 'utils'))
 sys.path.append(CURR_DIR)
 from LAMM.utils.config_files_utils import read_yaml
 from LAMM.utils.torch_utils import load_from_checkpoint
@@ -53,7 +52,7 @@ def clear_object_selection():
     bpy.ops.object.select_all(action='DESELECT')
 
 
-def get_face_landmark_vertices(mesh):
+def get_landmark_vertices(mesh):
     """Load landmarks for the mean mesh"""
     control_lms = config['MODEL']['regions']
     lms = []
@@ -95,9 +94,9 @@ def set_active_object(obj, select=True):
 
 
 ##################################### Classes #####################################
-class PG_FaceProperties(PropertyGroup):
+class PG_LAMMProperties(PropertyGroup):
     """Properties"""
-    face_region: EnumProperty(
+    lamm_region: EnumProperty(
         name = 'Region',
         description = 'Mesh Regions',
         items = [ ('0', 'Left Side', ''), ('1', 'Right Side', ''), ('3', 'Ears', ''),
@@ -106,9 +105,9 @@ class PG_FaceProperties(PropertyGroup):
     )
 
 
-class FaceAddMeanMesh(bpy.types.Operator):
+class LAMMAddMeanMesh(bpy.types.Operator):
     """Add model mean mesh to scene"""
-    bl_idname = 'object.face_add_mean_mesh'
+    bl_idname = 'object.lamm_add_mean_mesh'
     bl_label = 'Add'
     bl_description = 'Add the model mean mesh to the scene'
     bl_options = {'REGISTER', 'UNDO'}
@@ -142,7 +141,7 @@ class FaceAddMeanMesh(bpy.types.Operator):
         new_object = bpy.data.objects.new('mean', new_mesh)
         bpy.context.collection.objects.link(new_object)
 
-        lms = get_face_landmark_vertices(new_object)
+        lms = get_landmark_vertices(new_object)
         lms_object = bpy.data.objects.new(f'{new_object.name}_lms', lms)
         bpy.context.collection.objects.link(lms_object)
         lms_object.parent = new_object
@@ -159,10 +158,10 @@ class FaceAddMeanMesh(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class FaceAddRandomShape(bpy.types.Operator):
-    """Apply random shape to face
+class LAMMAddRandomShape(bpy.types.Operator):
+    """Apply random mesh shape
     """
-    bl_idname = "object.face_add_random_shape"
+    bl_idname = "object.lamm_add_random_shape"
     bl_label = "Random"
     bl_description = "Sets all shape blend shape keys to a random value"
     bl_options = {'REGISTER', 'UNDO'}
@@ -205,7 +204,7 @@ class FaceAddRandomShape(bpy.types.Operator):
         new_object = bpy.data.objects.new('random_shape', new_mesh)
         bpy.context.collection.objects.link(new_object)
 
-        lms = get_face_landmark_vertices(new_object)
+        lms = get_landmark_vertices(new_object)
         lms_object = bpy.data.objects.new(f'{new_object.name}_lms', lms)
         bpy.context.collection.objects.link(lms_object)
         lms_object.parent = new_object
@@ -221,9 +220,9 @@ class FaceAddRandomShape(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class FaceEditLandmarks(bpy.types.Operator):
+class LAMMEditLandmarks(bpy.types.Operator):
     """Edit the landmarks"""
-    bl_idname = 'scene.face_edit_landmarks'
+    bl_idname = 'scene.lamm_edit_landmarks'
     bl_label = 'Edit Landmarks'
     bl_description = 'Edit landmark positions'
     bl_options = {'REGISTER', 'UNDO'}
@@ -255,10 +254,10 @@ class FaceEditLandmarks(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class FaceLoadMesh(bpy.types.Operator):
+class LAMMLoadMesh(bpy.types.Operator):
     """Add model to scene
     """
-    bl_idname = "scene.face_load_mesh"
+    bl_idname = "scene.lamm_load_mesh"
     bl_label = "Load Mesh"
     bl_description = "Load selected mesh to scene"
     bl_options = {'REGISTER', 'UNDO'}
@@ -276,7 +275,11 @@ class FaceLoadMesh(bpy.types.Operator):
     def execute(self, context):
         """Execute"""
         mesh_path = context.scene.mesh_path
-        mesh_name = mesh_path.split('\\')[-1]
+        if not os.path.isfile(mesh_path):
+            print('File does not exist... Can\'t load mesh...')
+            return {'FINISHED'}
+
+        mesh_name = mesh_path.split('\\')[-1].split('.')[0]
         print(f'Loading mesh: {mesh_name}...')
         mesh = tm.load(mesh_path)
 
@@ -287,7 +290,7 @@ class FaceLoadMesh(bpy.types.Operator):
         new_object = bpy.data.objects.new(mesh_name, new_mesh)
         bpy.context.collection.objects.link(new_object)
 
-        lms = get_face_landmark_vertices(new_object)
+        lms = get_landmark_vertices(new_object)
         lms_object = bpy.data.objects.new(f'{new_object.name}_lms', lms)
         bpy.context.collection.objects.link(lms_object)
         lms_object.parent = new_object
@@ -304,12 +307,12 @@ class FaceLoadMesh(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class FaceLoadModel(bpy.types.Operator):
+class LAMMLoadModel(bpy.types.Operator):
     """Add model to scene
     """
-    bl_idname = "scene.face_load_model"
+    bl_idname = "scene.lamm_load_model"
     bl_label = "Load Model"
-    bl_description = "Load selected face model to scene"
+    bl_description = "Load selected model to scene"
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -342,12 +345,12 @@ class FaceLoadModel(bpy.types.Operator):
         config['MODEL']['manipulation'] = True
 
         # # Set Enum Properties for facial regions
-        # bpy.context.window_manager.face_tool = EnumProperty(
+        # bpy.context.window_manager.lamm_tool = EnumProperty(
         #     name = 'Region',
         #     description = 'Mesh Regions',
         #     items = [ ('0', 'Left Side', ''), ('1', 'Right Side', ''), ('3', 'Ears', '') ]
         # )
-        # bpy.types.WindowManager.face_tool.face_region.items.append[
+        # bpy.types.WindowManager.lamm_tool.lamm_region.items.append[
         #     ('0', 'Left Side', ''), ('1', 'Right Side', '')]
 
         # Load model
@@ -391,9 +394,9 @@ class FaceLoadModel(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class FaceRandomiseRegion(bpy.types.Operator):
+class LAMMRandomiseRegion(bpy.types.Operator):
     """Randomise the shape of a specific region"""
-    bl_idname = 'object.face_randomise_region'
+    bl_idname = 'object.lamm_randomise_region'
     bl_label = 'Randomise Region'
     bl_description = 'Randomise the shape for a given mesh region'
     bl_options = {'REGISTER', 'UNDO'}
@@ -406,9 +409,9 @@ class FaceRandomiseRegion(bpy.types.Operator):
         except:
             return False
 
-    def update_face_landmarks(self, mesh):
-        """Update face landmarks"""
-        new_lms = get_face_landmark_vertices(mesh)
+    def update_lamm_landmarks(self, mesh):
+        """Update mesh landmarks"""
+        new_lms = get_landmark_vertices(mesh)
         mesh_lms = get_object(f'{mesh.name}_lms')
 
         for i, vert in enumerate(new_lms.vertices):
@@ -417,7 +420,7 @@ class FaceRandomiseRegion(bpy.types.Operator):
     def execute(self, context):
         """Execute"""
         control_lms = config['MODEL']['regions']
-        region = int(context.window_manager.face_tool.face_region)
+        region = int(context.window_manager.lamm_tool.lamm_region)
         print(f'Sampling region: {region}')
 
         # Get existing mesh
@@ -453,7 +456,7 @@ class FaceRandomiseRegion(bpy.types.Operator):
         # Update the mesh vertices
         for i, y_vert in enumerate(y):
             mesh.data.vertices[i].co = y_vert
-        self.update_face_landmarks(mesh)
+        self.update_lamm_landmarks(mesh)
 
         bpy.ops.object.select_all(action='DESELECT')
         context.view_layer.objects.active = mesh
@@ -465,9 +468,9 @@ class FaceRandomiseRegion(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class FaceResetShape(bpy.types.Operator):
-    """Reset face texture"""
-    bl_idname = "object.face_reset_shape"
+class LAMMResetShape(bpy.types.Operator):
+    """Reset mesh shape"""
+    bl_idname = "object.lamm_reset_shape"
     bl_label = "Reset"
     bl_description = "Resets all blend shape keys for shape"
     bl_options = {'REGISTER', 'UNDO'}
@@ -480,9 +483,9 @@ class FaceResetShape(bpy.types.Operator):
         except:
             return False
 
-    def update_face_landmarks(self, mesh):
-        """Update face landmarks"""
-        new_lms = get_face_landmark_vertices(mesh)
+    def update_lamm_landmarks(self, mesh):
+        """Update mesh landmarks"""
+        new_lms = get_landmark_vertices(mesh)
         mesh_lms = get_object(f'{mesh.name}_lms')
 
         for i, vert in enumerate(new_lms.vertices):
@@ -513,7 +516,7 @@ class FaceResetShape(bpy.types.Operator):
         # Update the mesh vertices and corresponding landmarks
         for i, vert in enumerate(vertices):
             mesh.data.vertices[i].co = vert
-        self.update_face_landmarks(mesh)
+        self.update_lamm_landmarks(mesh)
 
         bpy.ops.object.select_all(action='DESELECT')
         context.view_layer.objects.active = mesh
@@ -526,12 +529,12 @@ class FaceResetShape(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class FaceUpdateShape(bpy.types.Operator):
-    """Get the landmark deltas and update face shape
+class LAMMUpdateShape(bpy.types.Operator):
+    """Get the landmark deltas and update mesh shape
     """
-    bl_idname = 'object.face_update_shape'
-    bl_label = 'Update Face Shape'
-    bl_description = 'Update face shape based on identity and landmark deltas'
+    bl_idname = 'object.lamm_update_shape'
+    bl_label = 'Update Mesh Shape'
+    bl_description = 'Update mesh shape based on identity and landmark deltas'
     bl_options = {'REGISTER', 'UNDO'}
 
     @classmethod
@@ -564,9 +567,9 @@ class FaceUpdateShape(bpy.types.Operator):
             start_lm += n_lms
         return delta_tensor, sum_deltas
 
-    def update_face_landmarks(self, mesh):
-        """Update face landmarks"""
-        new_lms = get_face_landmark_vertices(mesh)
+    def update_lamm_landmarks(self, mesh):
+        """Update mesh landmarks"""
+        new_lms = get_landmark_vertices(mesh)
         mesh_lms = get_object(f'{mesh.name}_lms')
 
         for i, vert in enumerate(new_lms.vertices):
@@ -585,7 +588,7 @@ class FaceUpdateShape(bpy.types.Operator):
 
         # Check original landmark positions
         curr_lms = bpy.data.objects[f'{mesh_name}_lms'].data.vertices
-        orig_lms = get_face_landmark_vertices(mesh).vertices
+        orig_lms = get_landmark_vertices(mesh).vertices
         deltas, sum_deltas = self.get_landmark_deltas(orig_lms, curr_lms)
         if sum_deltas == 0:  # Exit early if landmarks have not been moved
             return {'FINISHED'}
@@ -604,7 +607,7 @@ class FaceUpdateShape(bpy.types.Operator):
         # Update the mesh vertices
         for i, y_vert in enumerate(y):
             mesh.data.vertices[i].co = y_vert
-        self.update_face_landmarks(mesh)
+        self.update_lamm_landmarks(mesh)
 
         bpy.ops.object.select_all(action='DESELECT')
         context.view_layer.objects.active = mesh
@@ -619,7 +622,7 @@ class FaceUpdateShape(bpy.types.Operator):
 
 ################################## Panel Classes ##################################
 class LAMM_PT_Model(bpy.types.Panel):
-    """Face loading UI
+    """Mesh Loading UI
     """
     bl_label = "Model"
     bl_category = "LAMM"
@@ -632,18 +635,18 @@ class LAMM_PT_Model(bpy.types.Panel):
         col = layout.column(align=True)
 
         col.prop(context.scene, 'model_path')
-        col.operator("scene.face_load_model", text="Load Model")
+        col.operator("scene.lamm_load_model", text="Load Model")
 
         col.separator()
-        col.operator("object.face_add_mean_mesh", text="Add Model Mean")
+        col.operator("object.lamm_add_mean_mesh", text="Add Model Mean")
 
         col.separator()
         col.prop(context.scene, 'mesh_path')
-        col.operator("scene.face_load_mesh", text="Load Mesh")
+        col.operator("scene.lamm_load_mesh", text="Load Mesh")
 
         col.separator()
         col.label(text='Sample:')
-        col.operator("object.face_add_random_shape", text="Add Random Instance")
+        col.operator("object.lamm_add_random_shape", text="Add Random Instance")
 
 
 class LAMM_PT_Landmarks(bpy.types.Panel):
@@ -659,29 +662,29 @@ class LAMM_PT_Landmarks(bpy.types.Panel):
         col = layout.column(align=True)
 
         col.separator()
-        col.operator("scene.face_edit_landmarks", text="Edit Landmarks")
+        col.operator("scene.lamm_edit_landmarks", text="Edit Landmarks")
 
         col.separator()
-        col.operator("object.face_update_shape", text="Update Shape")
+        col.operator("object.lamm_update_shape", text="Update Shape")
 
         col.separator()
-        col.prop(context.window_manager.face_tool, "face_region")
-        col.operator("object.face_randomise_region", text="Randomise Region")
+        col.prop(context.window_manager.lamm_tool, "lamm_region")
+        col.operator("object.lamm_randomise_region", text="Randomise Region")
 
         col.separator()
-        col.operator("object.face_reset_shape", text="Reset To Mean")
+        col.operator("object.lamm_reset_shape", text="Reset To Mean")
 
 
 classes = [
-    PG_FaceProperties,
-    FaceAddMeanMesh,
-    FaceAddRandomShape,
-    FaceEditLandmarks,
-    FaceLoadModel,
-    FaceLoadMesh,
-    FaceRandomiseRegion,
-    FaceResetShape,
-    FaceUpdateShape,
+    PG_LAMMProperties,
+    LAMMAddMeanMesh,
+    LAMMAddRandomShape,
+    LAMMEditLandmarks,
+    LAMMLoadModel,
+    LAMMLoadMesh,
+    LAMMRandomiseRegion,
+    LAMMResetShape,
+    LAMMUpdateShape,
     LAMM_PT_Model,
     LAMM_PT_Landmarks,
 ]
@@ -708,7 +711,7 @@ def register():
 
     # Store properties under WindowManager (not Scene) so that they are not saved
     #     in .blend files and always show default values after loading
-    bpy.types.WindowManager.face_tool = PointerProperty(type=PG_FaceProperties)
+    bpy.types.WindowManager.lamm_tool = PointerProperty(type=PG_LAMMProperties)
     print('CUDA:', torch.cuda.is_available())
 
 
@@ -717,7 +720,7 @@ def unregister():
     for cls in classes:
         bpy.utils.unregister_class(cls)
 
-    del bpy.types.WindowManager.face_tool
+    del bpy.types.WindowManager.lamm_tool
     del bpy.types.Scene.model_path
     del bpy.types.Scene.mesh_path
 
