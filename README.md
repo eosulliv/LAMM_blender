@@ -9,12 +9,12 @@ The latest version of this add-on, ``lamm_blender_x_xx.zip'', can be downloaded 
 
 To install the add on:
 ----------------------
-Method 1:
+**Method 1:**
 - Unzip the file "lamm_blender_x_xx.zip" into the "<>\scripts\addons" Blender directory
 
 or
 
-Method 2:
+**Method 2:**
 - Open Blender
 - Navigate to Edit > Preferences > Add-ons
 - Click on the "Install" button
@@ -23,23 +23,25 @@ Method 2:
 
 Downloading the model and checkpoints
 -------------------------------------
-Downloading LAMM:
+**Downloading LAMM:**
 - Navigate to the "<>\scripts\addons\lamm_blender_x_xx" directory via the command line.
 - Clone [LAMM](https://github.com/michaeltrs/LAMM) from the github repository GitHub repository. It should be cloned into the "model" folder in the "<>.
 
+**Model checkpoints:**
+The add-on assumes the checkpoint is located within "LAMM/assets/checkpoints."
+You can change this and point the add-on to the checkpoint folder of your trained model using the file search option at the top of the "Face Model" pane.
 
-Model checkpoints:
-You can point the add-on to your trained model checkpoint folder using the file search option at the top of the "Face Model" pane.
-The checkpoint directroy is expected to contain the following assets:
+The checkpoint directory is expected to contain the following assets:
 - checkpoint.pth
-- config.yaml
-- displacement_stats.pkl
-- gaussian_id.pkl
-- mean.obj
-- mean_std_model.pkl
-
-A sample config file has been provided in this repository.
-
+- config_file.yaml
+- files
+  - displacement_stats.pickle
+  - gaussian_id.pickle
+  - mean_std.pickle
+  - region_boundaries.pickle
+  - region_ids.pickle
+  - region_names.pickle (optional)
+  - template.obj
 
 
 Set-up
