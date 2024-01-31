@@ -21,7 +21,10 @@ from bpy.types import PropertyGroup
 CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 CHECKPOINT_DIR = os.path.join(CURR_DIR, 'LAMM', 'assets', 'checkpoints')
 # TODO: Change this so that it is alphabetically the first checkpoint in the dir
-DEFAULT_CHECKPOINT = 'UHM17k_v1'
+if len(os.listdir(CHECKPOINT_DIR)) >= 1:
+    DEFAULT_CHECKPOINT = sorted(os.listdir(CHECKPOINT_DIR))[0]
+else:
+    DEFAULT_CHECKPOINT = ''
 
 sys.path.append(os.path.join(CURR_DIR, 'packages'))
 import trimesh as tm
@@ -132,7 +135,7 @@ class LAMMAddMeanMesh(bpy.types.Operator):
 
         z_mean = np.array([gid_dict['mean']])
         vertices = model.decode(torch.tensor(z_mean).unsqueeze(0), delta)[-1][0].detach().numpy()
-        vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean']
+        vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean'] - vertex_mean
 
         new_mesh = bpy.data.meshes.new('mean')
         new_mesh.from_pydata(vertices, [], faces)
@@ -187,14 +190,12 @@ class LAMMAddRandomShape(bpy.types.Operator):
         z = torch.tensor(np.random.multivariate_normal(mu, 1 * sigma, 1),
                          dtype=torch.float32).to(device)
 
-        # Regions: 0: 'left side', 1: 'right side', 3: 'ears', 6: 'skull',
-        #          7: 'forehead', 8: 'eyes', 9: 'nose', 10: 'mouth'
         delta = []
-        for idx in control_lms.keys():  # [9, 0, 8, 3, 7, 1, 10, 6]:
+        for idx in control_lms.keys():
             delta.append(torch.zeros(3 * len(control_lms[idx]), device=device).reshape(1, -1))
 
         vertices = model.decode(z.unsqueeze(0), delta)[-1][0].detach().numpy()
-        vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean']
+        vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean'] - vertex_mean
 
         # Create new object with decoded vertices and rotate to correct orientation
         new_mesh = bpy.data.meshes.new('random_shape')
@@ -283,8 +284,10 @@ class LAMMLoadMesh(bpy.types.Operator):
         print(f'Loading mesh: {mesh_name}...')
         mesh = tm.load(mesh_path)
 
+        # Load mesh and centre it about the origin
         new_mesh = bpy.data.meshes.new(mesh_name)
-        new_mesh.from_pydata(mesh.vertices, [], mesh.faces)
+        vertices = mesh.vertices - np.mean(mesh.vertices, axis=0)
+        new_mesh.from_pydata(vertices, [], mesh.faces)
         new_mesh.update()
 
         new_object = bpy.data.objects.new(mesh_name, new_mesh)
@@ -379,8 +382,11 @@ class LAMMLoadModel(bpy.types.Operator):
             disp_stats = pickle.load(f)
 
         global faces
-        head_mesh = tm.load(os.path.join(path, 'template.obj'))
-        faces = head_mesh.faces
+        mesh = tm.load(os.path.join(path, 'template.obj'))
+        faces = mesh.faces
+
+        global vertex_mean
+        vertex_mean = np.asarray(np.mean(mesh.vertices, axis=0))
 
     def execute(self, context):
         """Execute"""
@@ -446,12 +452,13 @@ class LAMMRandomiseRegion(bpy.types.Operator):
         vertices = np.ones(len(mesh.data.vertices) * 3)
         mesh.data.vertices.foreach_get("co", vertices)
         vertices = torch.tensor(vertices.reshape(1, -1, 3), dtype=torch.float32)
+        vertices += vertex_mean
         vertices = (vertices - mean_std['mean']) / (mean_std['std'] + 1e-7)
         vertices = vertices.to(torch.float32).to(device)
 
         id_token, _ = model.encode(vertices)
         y = model.decode(id_token, deltas)[-1][0].detach().numpy()
-        y = (y * (mean_std['std'] + 1e-7) + mean_std['mean'])
+        y = y * (mean_std['std'] + 1e-7) + mean_std['mean'] - vertex_mean
 
         # Update the mesh vertices
         for i, y_vert in enumerate(y):
@@ -511,7 +518,7 @@ class LAMMResetShape(bpy.types.Operator):
 
         z_mean = np.array([gid_dict['mean']])
         vertices = model.decode(torch.tensor(z_mean).unsqueeze(0), delta)[-1][0].detach().numpy()
-        vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean']
+        vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean'] - vertex_mean
 
         # Update the mesh vertices and corresponding landmarks
         for i, vert in enumerate(vertices):
@@ -597,12 +604,13 @@ class LAMMUpdateShape(bpy.types.Operator):
         vertices = np.ones(len(mesh.data.vertices) * 3)
         mesh.data.vertices.foreach_get("co", vertices)
         vertices = torch.tensor(vertices.reshape(1, -1, 3), dtype=torch.float32)
+        vertices += vertex_mean
         vertices = (vertices - mean_std['mean']) / (mean_std['std'] + 1e-7)
         vertices = vertices.to(torch.float32).to(device)
 
         id_token, _ = model.encode(vertices)
         y = model.decode(id_token, deltas)[-1][0].detach().numpy()
-        y = (y * (mean_std['std'] + 1e-7) + mean_std['mean'])
+        y = y * (mean_std['std'] + 1e-7) + mean_std['mean'] - vertex_mean
 
         # Update the mesh vertices
         for i, y_vert in enumerate(y):
