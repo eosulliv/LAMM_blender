@@ -24,8 +24,8 @@ or
 Downloading the model and checkpoints
 -------------------------------------
 **Downloading LAMM:**
-- Navigate to the "<>\scripts\addons\lamm_blender_x_xx" directory via the command line.
-- Clone [LAMM](https://github.com/michaeltrs/LAMM) from the github repository GitHub repository. It should be cloned into the "model" folder in the "<>.
+Navigate to the "<>\scripts\addons\lamm_blender_x_xx" directory via the command line.
+Clone [LAMM](https://github.com/michaeltrs/LAMM) from the github repository GitHub repository.
 
 **Model checkpoints:**
 The add-on assumes the checkpoint is located within "LAMM/assets/checkpoints."
@@ -50,7 +50,7 @@ Once the plug-in has been installed and the model downloaded, you will need to i
 
 - Open setup.py in the Blender scripting pane
 - Run the script and wait for all packages to install
-- You may need to restart Blender after this step
+- You may need to restart Blender after all packages have completed installation
 
 
 Acknowledgements

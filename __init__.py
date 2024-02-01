@@ -20,7 +20,6 @@ from bpy.types import PropertyGroup
 # Add path to packages
 CURR_DIR = os.path.dirname(os.path.realpath(__file__))
 CHECKPOINT_DIR = os.path.join(CURR_DIR, 'LAMM', 'assets', 'checkpoints')
-# TODO: Change this so that it is alphabetically the first checkpoint in the dir
 if len(os.listdir(CHECKPOINT_DIR)) >= 1:
     DEFAULT_CHECKPOINT = sorted(os.listdir(CHECKPOINT_DIR))[0]
 else:
@@ -63,12 +62,8 @@ def get_landmark_vertices(mesh):
         for idx in vals:
             lms.append(mesh.data.vertices[idx].co)
 
-    edges = []
-    if 'region_edges' in config['MODEL']:
-        edges = config['MODEL']['region_edges']
-
     lms_mesh = bpy.data.meshes.new('lms')
-    lms_mesh.from_pydata(lms, edges, [])
+    lms_mesh.from_pydata(lms, landmark_edges, [])
     lms_mesh.update()
     return lms_mesh
 
@@ -102,9 +97,10 @@ class PG_LAMMProperties(PropertyGroup):
     lamm_region: EnumProperty(
         name = 'Region',
         description = 'Mesh Regions',
-        items = [ ('0', 'Left Side', ''), ('1', 'Right Side', ''), ('3', 'Ears', ''),
-                  ('6', 'Skull', ''), ('7', 'Forehead', ''), ('8', 'Eyes', ''),
-                  ('9', 'Nose', ''), ('10','Mouth',  '') ]
+        items = [ ('0', '0', ''), ('1', '1', ''), ('2', '2', ''), ('3', '3', ''),
+                  ('4', '4', ''), ('5', '5', ''), ('6', '6', ''), ('7', '7', ''),
+                  ('8', '8', ''), ('9', '9', ''), ('10','10', ''), ('11', '11', ''),
+                  ('12', '12', ''), ('13', '13', ''), ('14','14', ''), ('15', '15', '') ]
     )
 
 
@@ -347,15 +343,6 @@ class LAMMLoadModel(bpy.types.Operator):
             CURR_DIR, 'LAMM', config['MODEL']['face_part_ids_file'])
         config['MODEL']['manipulation'] = True
 
-        # # Set Enum Properties for facial regions
-        # bpy.context.window_manager.lamm_tool = EnumProperty(
-        #     name = 'Region',
-        #     description = 'Mesh Regions',
-        #     items = [ ('0', 'Left Side', ''), ('1', 'Right Side', ''), ('3', 'Ears', '') ]
-        # )
-        # bpy.types.WindowManager.lamm_tool.lamm_region.items.append[
-        #     ('0', 'Left Side', ''), ('1', 'Right Side', '')]
-
         # Load model
         model = LAMM(config['MODEL']).to(device)
 
@@ -387,6 +374,13 @@ class LAMMLoadModel(bpy.types.Operator):
 
         global vertex_mean
         vertex_mean = np.asarray(np.mean(mesh.vertices, axis=0))
+
+        global landmark_edges
+        landmark_file = os.path.join(path, 'landmark_edges.yaml')
+        landmark_edges = []
+        if os.path.isfile(landmark_file):
+            landmark_json = read_yaml(landmark_file)
+            landmark_edges = landmark_json['landmark_edges']
 
     def execute(self, context):
         """Execute"""
