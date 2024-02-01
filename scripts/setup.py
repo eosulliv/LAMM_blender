@@ -18,7 +18,7 @@ subprocess.run([python_path, "-m", "ensurepip"])
 subprocess.run([python_path, "-m", "pip", "install", "--upgrade", "pip"])
 
 # Check if the required packages are installed
-required_packages = ["numpy", "trimesh", "pyyaml", "einops"]
+required_packages = ["numpy", "trimesh", "pyyaml", "einops", "timm==0.9.2"]
 installed_packages = {pkg.name for pkg in pkgutil.iter_modules()}
 
 for package in required_packages:
