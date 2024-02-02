@@ -11,6 +11,7 @@ To install the add on:
 ----------------------
 **Method 1:**
 - Unzip the file "lamm_blender_x_xx.zip" into the "<>\scripts\addons" Blender directory
+# To do  - Make this clearer
 
 or
 

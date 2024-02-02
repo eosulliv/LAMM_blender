@@ -107,8 +107,8 @@ class PG_LAMMProperties(PropertyGroup):
     )
 
     enable_smoothing: BoolProperty(
-        name="Smoothing",
-        description="Run smoothing on region boundaries",
+        name="Enable Smoothing",
+        description="Enable smoothing on region boundaries",
         default=True
     )
 
@@ -138,6 +138,7 @@ class LAMMAddMeanMesh(bpy.types.Operator):
         for idx in control_lms.keys():
             delta.append(torch.zeros(3 * len(control_lms[idx]), device=device).reshape(1, -1))
 
+        # Create mesh
         z_mean = np.array([gid_dict['mean']])
         vertices = model.decode(torch.tensor(z_mean).unsqueeze(0), delta)[-1][0].detach().numpy()
         vertices = vertices * (mean_std['std'] + 1e-7) + mean_std['mean'] - vertex_mean
@@ -146,18 +147,23 @@ class LAMMAddMeanMesh(bpy.types.Operator):
         new_mesh.from_pydata(vertices, [], faces)
         new_mesh.update()
 
-        new_object = bpy.data.objects.new('mean', new_mesh)
-        bpy.context.collection.objects.link(new_object)
+        mesh_object = bpy.data.objects.new('mean', new_mesh)
+        bpy.context.collection.objects.link(mesh_object)
 
-        lms = get_landmark_vertices(new_object)
-        lms_object = bpy.data.objects.new(f'{new_object.name}_lms', lms)
+        # Add id to the mesh as an attribute
+        mesh_object['id'] = np.array([gid_dict['mean']])
+        # mesh_object['deltas'] = 0
+
+        # Get mesh landmarks
+        lms = get_landmark_vertices(mesh_object)
+        lms_object = bpy.data.objects.new(f'{mesh_object.name}_lms', lms)
         bpy.context.collection.objects.link(lms_object)
-        lms_object.parent = new_object
-        set_active_object(new_object)
+        lms_object.parent = mesh_object
+        set_active_object(mesh_object)
 
         bpy.ops.object.select_all(action='DESELECT')
-        context.view_layer.objects.active = new_object
-        bpy.data.objects[new_object.name].select_set(True)
+        context.view_layer.objects.active = mesh_object
+        bpy.data.objects[mesh_object.name].select_set(True)
 
         bpy.context.active_object.rotation_mode = 'XYZ'
         bpy.context.active_object.rotation_euler = (radians(90), 0, 0)
@@ -210,6 +216,10 @@ class LAMMAddRandomShape(bpy.types.Operator):
         new_object = bpy.data.objects.new('random_shape', new_mesh)
         bpy.context.collection.objects.link(new_object)
 
+        # Add id to the mesh as an attribute
+        mesh_object['id'] = np.array([z.unsqueeze(0)])
+
+        # Get mesh landmarks
         lms = get_landmark_vertices(new_object)
         lms_object = bpy.data.objects.new(f'{new_object.name}_lms', lms)
         bpy.context.collection.objects.link(lms_object)
@@ -295,18 +305,22 @@ class LAMMLoadMesh(bpy.types.Operator):
         new_mesh.from_pydata(vertices, [], mesh.faces)
         new_mesh.update()
 
-        new_object = bpy.data.objects.new(mesh_name, new_mesh)
-        bpy.context.collection.objects.link(new_object)
+        mesh_object = bpy.data.objects.new(mesh_name, new_mesh)
+        bpy.context.collection.objects.link(mesh_object)
 
-        lms = get_landmark_vertices(new_object)
-        lms_object = bpy.data.objects.new(f'{new_object.name}_lms', lms)
+        # TODO: Get the id token for the loaded mesh and set the property
+        # TODO: Add a deltas property and set all values to zero
+
+        # Get mesh landmarks
+        lms = get_landmark_vertices(mesh_object)
+        lms_object = bpy.data.objects.new(f'{mesh_object.name}_lms', lms)
         bpy.context.collection.objects.link(lms_object)
-        lms_object.parent = new_object
-        set_active_object(new_object)
+        lms_object.parent = mesh_object
+        set_active_object(mesh_object)
 
         bpy.ops.object.select_all(action='DESELECT')
-        context.view_layer.objects.active = new_object
-        bpy.data.objects[new_object.name].select_set(True)
+        context.view_layer.objects.active = mesh_object
+        bpy.data.objects[mesh_object.name].select_set(True)
 
         bpy.context.active_object.rotation_mode = 'XYZ'
         bpy.context.active_object.rotation_euler = (radians(90), 0, 0)
@@ -474,9 +488,19 @@ class LAMMRandomiseRegion(bpy.types.Operator):
         vertices = (vertices - mean_std['mean']) / (mean_std['std'] + 1e-7)
         vertices = vertices.to(torch.float32).to(device)
 
-        id_token, _ = model.encode(vertices)
+        # Get the mesh id token and update shape
+        id_token =  torch.tensor([[context.active_object['id'].to_list()]])
         y = model.decode(id_token, deltas)[-1][0].detach().numpy()
         y = y * (mean_std['std'] + 1e-7) + mean_std['mean'] - vertex_mean
+
+        # Smooth mesh vertices in boundary regions if smoothing enabled
+        if context.window_manager.lamm_tool.enable_smoothing:
+            print('Enabled smoothing')
+            mesh_tm = tm.Trimesh(y, faces)
+            laplacian_op = tm.smoothing.laplacian_calculation(
+                mesh_tm, equal_weight=False, pinned_vertices=pinned_verts)
+            mesh_tm = tm.smoothing.filter_taubin(mesh_tm, laplacian_operator=laplacian_op)
+            y = mesh_tm.vertices
 
         # Update the mesh vertices
         for i, y_vert in enumerate(y):
@@ -618,6 +642,8 @@ class LAMMUpdateShape(bpy.types.Operator):
         if sum_deltas == 0:  # Exit early if landmarks have not been moved
             return {'FINISHED'}
 
+        print(deltas)
+
         # Get mesh vertices
         vertices = np.ones(len(mesh.data.vertices) * 3)
         mesh.data.vertices.foreach_get("co", vertices)
@@ -627,7 +653,7 @@ class LAMMUpdateShape(bpy.types.Operator):
         vertices = vertices.to(torch.float32).to(device)
 
         # Get current id token and decode with updated deltas
-        id_token, _ = model.encode(vertices)
+        id_token =  torch.tensor([[context.active_object['id'].to_list()]])
         y = model.decode(id_token, deltas)[-1][0].detach().numpy()
         y = y * (mean_std['std'] + 1e-7) + mean_std['mean'] - vertex_mean
 
@@ -635,7 +661,7 @@ class LAMMUpdateShape(bpy.types.Operator):
         if context.window_manager.lamm_tool.enable_smoothing:
             mesh_tm = tm.Trimesh(y, faces)
             laplacian_op = tm.smoothing.laplacian_calculation(
-                mesh_tm, pinned_vertices=pinned_verts)
+                mesh_tm, equal_weight=False, pinned_vertices=pinned_verts)
             mesh_tm = tm.smoothing.filter_taubin(mesh_tm, laplacian_operator=laplacian_op)
             y = mesh_tm.vertices
 
@@ -700,8 +726,8 @@ class LAMM_PT_Landmarks(bpy.types.Panel):
         col.operator("scene.lamm_edit_landmarks", text="Edit Landmarks")
 
         col.separator()
-        col.prop(context.window_manager.lamm_tool, "enable_smoothing")
         col.operator("object.lamm_update_shape", text="Update Shape")
+        col.prop(context.window_manager.lamm_tool, "enable_smoothing")
 
         col.separator()
         col.prop(context.window_manager.lamm_tool, "lamm_region")
