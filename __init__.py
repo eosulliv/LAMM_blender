@@ -9,7 +9,10 @@ import sys
 from math import radians
 from mathutils import Vector, Quaternion
 
+# from scipy.sparse import coo_matrix
+
 import numpy as np
+import trimesh as tm
 
 import bpy
 from bpy_extras.io_utils import ImportHelper, ExportHelper
@@ -101,6 +104,12 @@ class PG_LAMMProperties(PropertyGroup):
                   ('4', '4', ''), ('5', '5', ''), ('6', '6', ''), ('7', '7', ''),
                   ('8', '8', ''), ('9', '9', ''), ('10','10', ''), ('11', '11', ''),
                   ('12', '12', ''), ('13', '13', ''), ('14','14', ''), ('15', '15', '') ]
+    )
+
+    enable_smoothing: BoolProperty(
+        name="Smoothing",
+        description="Run smoothing on region boundaries",
+        default=True
     )
 
 
@@ -382,6 +391,21 @@ class LAMMLoadModel(bpy.types.Operator):
             landmark_json = read_yaml(landmark_file)
             landmark_edges = landmark_json['landmark_edges']
 
+        # Pinned vertices for smoothing
+        global pinned_verts
+        boundaries_file = os.path.join(path, 'region_boundaries.pickle')
+        pinned_verts = []
+        if os.path.isfile(boundaries_file):
+            with open(boundaries_file, 'rb') as f:
+                region_boundaries = pickle.load(f)
+
+            boundary_verts_list = [region_boundaries[key] for key in region_boundaries.keys()]
+            boundary_verts = [vert for verts in boundary_verts_list for vert in verts]
+
+            pinned_verts = np.ones(mesh.vertices.shape[0], dtype=bool)
+            pinned_verts[boundary_verts] = 0
+            pinned_verts = np.where(pinned_verts)[0]
+
     def execute(self, context):
         """Execute"""
         model_path = context.scene.model_path
@@ -602,9 +626,18 @@ class LAMMUpdateShape(bpy.types.Operator):
         vertices = (vertices - mean_std['mean']) / (mean_std['std'] + 1e-7)
         vertices = vertices.to(torch.float32).to(device)
 
+        # Get current id token and decode with updated deltas
         id_token, _ = model.encode(vertices)
         y = model.decode(id_token, deltas)[-1][0].detach().numpy()
         y = y * (mean_std['std'] + 1e-7) + mean_std['mean'] - vertex_mean
+
+        # Smooth mesh vertices in boundary regions if smoothing enabled
+        if context.window_manager.lamm_tool.enable_smoothing:
+            mesh_tm = tm.Trimesh(y, faces)
+            laplacian_op = tm.smoothing.laplacian_calculation(
+                mesh_tm, pinned_vertices=pinned_verts)
+            mesh_tm = tm.smoothing.filter_taubin(mesh_tm, laplacian_operator=laplacian_op)
+            y = mesh_tm.vertices
 
         # Update the mesh vertices
         for i, y_vert in enumerate(y):
@@ -667,6 +700,7 @@ class LAMM_PT_Landmarks(bpy.types.Panel):
         col.operator("scene.lamm_edit_landmarks", text="Edit Landmarks")
 
         col.separator()
+        col.prop(context.window_manager.lamm_tool, "enable_smoothing")
         col.operator("object.lamm_update_shape", text="Update Shape")
 
         col.separator()
