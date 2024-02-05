@@ -9,8 +9,6 @@ import sys
 from math import radians
 from mathutils import Vector, Quaternion
 
-# from scipy.sparse import coo_matrix
-
 import numpy as np
 import trimesh as tm
 
@@ -495,7 +493,6 @@ class LAMMRandomiseRegion(bpy.types.Operator):
 
         # Smooth mesh vertices in boundary regions if smoothing enabled
         if context.window_manager.lamm_tool.enable_smoothing:
-            print('Enabled smoothing')
             mesh_tm = tm.Trimesh(y, faces)
             laplacian_op = tm.smoothing.laplacian_calculation(
                 mesh_tm, equal_weight=False, pinned_vertices=pinned_verts)
@@ -641,8 +638,6 @@ class LAMMUpdateShape(bpy.types.Operator):
         deltas, sum_deltas = self.get_landmark_deltas(orig_lms, curr_lms)
         if sum_deltas == 0:  # Exit early if landmarks have not been moved
             return {'FINISHED'}
-
-        print(deltas)
 
         # Get mesh vertices
         vertices = np.ones(len(mesh.data.vertices) * 3)
