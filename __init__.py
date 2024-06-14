@@ -161,7 +161,7 @@ class LAMMAddMeanMesh(bpy.types.Operator):
 
         # Add id and original mesh landmarks to the mesh as an attribute
         mesh_object['id'] = np.array([gid_dict['mean']])
-        print(mesh_object['id'])
+        print(lms)
         mesh_object['orig_lms'] = lms.copy()
 
         bpy.ops.object.select_all(action='DESELECT')
@@ -227,8 +227,8 @@ class LAMMAddRandomShape(bpy.types.Operator):
         set_active_object(new_object)
 
         # Add id and mesh deltas to the mesh as an attribute
-        mesh_object['id'] = np.array([z.unsqueeze(0)])
-        mesh_object['orig_lms'] = lms.copy()
+        new_object['id'] = np.array([np.asarray(z).reshape((-1,))])
+        new_object['orig_lms'] = lms.copy()
 
         bpy.ops.object.select_all(action='DESELECT')
         context.view_layer.objects.active = new_object
@@ -319,26 +319,19 @@ class LAMMLoadMesh(bpy.types.Operator):
         lms_object.parent = mesh_object
         set_active_object(mesh_object)
 
-        # Get mesh vertices
+        # # Get mesh vertices
         verts = np.ones(len(mesh_object.data.vertices) * 3)
-        print(verts)
         mesh_object.data.vertices.foreach_get("co", verts)
-        print(verts)
-        verts = torch.tensor(verts.reshape(1, -1, 3), dtype=torch.float32)
-        print(verts)
+        verts = torch.tensor(mesh.vertices.reshape(1, -1, 3), dtype=torch.float32)
         verts += vertex_mean
-        print(verts)
         verts = (verts - mean_std['mean']) / (mean_std['std'] + 1e-7)
-        print(verts, 'good')
         verts = verts.to(torch.float32).to(device)
-        print(verts, 'conv')
 
         # Get current id token and decode with updated deltas
         mesh_object['id'], _ = model.encode(verts)
-        print(mesh_object['id'])
         mesh_object['orig_lms'] = lms.copy()
 
-        bpy.ops.object.select_all(action='DESELECT')
+        # bpy.ops.object.select_all(action='DESELECT')
         context.view_layer.objects.active = mesh_object
         bpy.data.objects[mesh_object.name].select_set(True)
 
@@ -722,9 +715,9 @@ class LAMM_PT_Model(bpy.types.Panel):
         col.separator()
         col.operator("object.lamm_add_mean_mesh", text="Add Model Mean")
 
-        col.separator()
-        col.prop(context.scene, 'mesh_path')
-        col.operator("scene.lamm_load_mesh", text="Load Mesh")
+        # col.separator()
+        # col.prop(context.scene, 'mesh_path')
+        # col.operator("scene.lamm_load_mesh", text="Load Mesh")
 
         col.separator()
         col.label(text='Sample:')
