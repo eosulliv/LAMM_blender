@@ -32,7 +32,7 @@ import torch
 
 # Add path to model utils
 sys.path.append(CURR_DIR)
-from LAMM.utils.config_files_utils import read_yaml
+from LAMM.utils.config_utils import read_yaml
 from LAMM.utils.torch_utils import load_from_checkpoint
 from LAMM.models import LAMM
 
@@ -57,7 +57,7 @@ def clear_object_selection():
 
 def get_landmark_vertices(mesh):
     """Get mesh landmarks from control landmark indices"""
-    control_lms = config['MODEL']['regions']
+    control_lms = config['MODEL']['control_vertices']
     lms = []
     for vals in control_lms.values():
         for idx in vals:
@@ -135,7 +135,7 @@ class LAMMAddMeanMesh(bpy.types.Operator):
     def execute(self, context):
         """Execute"""
         print('Adding mean model mesh...')
-        control_lms = config['MODEL']['regions']
+        control_lms = config['MODEL']['control_vertices']
         delta = []
         for idx in control_lms.keys():
             delta.append(torch.zeros(3 * len(control_lms[idx]), device=device).reshape(1, -1))
@@ -196,7 +196,7 @@ class LAMMAddRandomShape(bpy.types.Operator):
     def execute(self, context):
         """Execute"""
         print('Adding random model mesh...')
-        control_lms = config['MODEL']['regions']
+        control_lms = config['MODEL']['control_vertices']
         mu = gid_dict['mean']
         sigma = gid_dict['sigma']
 
@@ -375,8 +375,8 @@ class LAMMLoadModel(bpy.types.Operator):
         config = read_yaml(config_file)
         config_json = json.dumps(config, indent=1, ensure_ascii=True)
         config['local_device_ids'] = device_ids
-        config['MODEL']['face_part_ids_file'] = os.path.join(
-            CURR_DIR, 'LAMM', config['MODEL']['face_part_ids_file'])
+        config['MODEL']['region_ids_file'] = os.path.join(
+            CURR_DIR, 'LAMM', config['MODEL']['region_ids_file'])
         config['MODEL']['manipulation'] = True
 
         # Load model
@@ -440,7 +440,7 @@ class LAMMLoadModel(bpy.types.Operator):
         print(f'Loading model: {model_name}...')
 
         self.load_model(model_path)
-        self.get_model_stats(os.path.join(model_path, 'files'))
+        self.get_model_stats(os.path.join(model_path))
         print('Loaded.')
         return {'FINISHED'} 
 
@@ -470,7 +470,7 @@ class LAMMRandomiseRegion(bpy.types.Operator):
 
     def execute(self, context):
         """Execute"""
-        control_lms = config['MODEL']['regions']
+        control_lms = config['MODEL']['control_vertices']
         region = int(context.window_manager.lamm_tool.lamm_region)
         print(f'Sampling region: {region}')
 
@@ -566,7 +566,7 @@ class LAMMResetShape(bpy.types.Operator):
         mesh['deltas'] = np.zeros((len(bpy.data.objects['mean_lms'].data.vertices), 3))
 
         # Get mean vertices
-        control_lms = config['MODEL']['regions']
+        control_lms = config['MODEL']['control_vertices']
         delta = []
         for idx in control_lms.keys():
             delta.append(torch.zeros(3 * len(control_lms[idx]), device=device).reshape(1, -1))
@@ -612,9 +612,8 @@ class LAMMUpdateShape(bpy.types.Operator):
         delta_list = []
         for curr_lm, orig_lm in zip(curr_lms, orig_lms):
             delta_list.append(curr_lm.co - orig_lm.co)
-        print(delta_list)
 
-        control_lms = config['MODEL']['regions']
+        control_lms = config['MODEL']['control_vertices']
         delta_tensor = []
         sum_deltas = 0
 
@@ -622,7 +621,7 @@ class LAMMUpdateShape(bpy.types.Operator):
         for idx in control_lms.keys():
             n_lms = len(control_lms[idx])
             d = torch.tensor(delta_list[start_lm:(start_lm + n_lms)]).reshape(-1)
-            indices = config['MODEL']['regions'][idx]
+            indices = config['MODEL']['control_vertices'][idx]
             std_ = torch.tensor((mean_std['std'][indices] + 1e-7).reshape(-1), dtype=torch.float32)
 
             delta_tensor.append((d / std_).reshape(1, -1))
